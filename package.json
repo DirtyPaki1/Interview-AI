@@ -22,7 +22,6 @@
     "eslint": "8.47.0",
     "eslint-config-next": "13.4.19",
     "formidable": "^3.5.1",
-    "fs": "^0.0.1-security",
     "next": "13.4.19",
     "openai": "^4.24.2",
     "pdfjs-dist": "^4.0.379",
