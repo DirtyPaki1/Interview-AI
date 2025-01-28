@@ -3,15 +3,30 @@
 import { useEffect, useState } from 'react';
 import { useChat } from 'ai/react';
 import dynamic from 'next/dynamic';
-import type { ChatBoxProps } from 'react-chat-plugin';
 import { ThemeProvider, createTheme, CssBaseline, Switch, FormControlLabel, Box } from '@mui/material';
 
+// Define the ChatBoxProps interface
+interface ChatBoxProps {
+  messages: any[];
+  userId: number;
+  onSendMessage: (message: string) => void;
+  width: string;
+  height: string;
+  authors: { username: string; id: number; avatarUrl: string; }[];
+}
+
+// Create a custom ChatBox component that handles the loading state
 const ChatBox = dynamic<ChatBoxProps>(() => import('react-chat-plugin'), { ssr: false });
 
-type ChatProps = {
-  initialText?: string;
+const CustomChatBox: React.FC<ChatBoxProps & { loading: boolean }> = ({ loading, ...props }) => {
+  if (loading) {
+    return <div>Loading...</div>;
+  }
+
+  return <ChatBox {...props} />;
 };
 
+// Define the ChatMessage type
 type ChatMessage = {
   author: {
     username: string;
@@ -23,6 +38,12 @@ type ChatMessage = {
   timestamp: number;
 };
 
+// Define the ChatProps type
+type ChatProps = {
+  initialText?: string;
+};
+
+// Define the user and AI authors
 const userAuthor = {
   username: 'User',
   id: 1,
@@ -150,7 +171,7 @@ const Chat: React.FC<ChatProps> = ({ initialText }) => {
           sx={{ marginBottom: '20px' }}
         />
 
-        <ChatBox
+        <CustomChatBox
           messages={chatMessages}
           userId={1}
           onSendMessage={handleOnSendMessage}
