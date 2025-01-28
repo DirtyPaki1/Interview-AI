@@ -24,29 +24,43 @@ const aiAuthor = {
 };
 
 const Chat: React.FC<ChatProps> = ({ initialText }) => {
-  const [chatMessages, setChatMessages] = useState([]);
-  const { append, messages } = useChat({
+  const [chatMessages, setChatMessages] = useState<Array<{ content: string; role: string }>>([]);
+  const { append, messages, isLoading: isAiLoading } = useChat({
     api: '/api/openai-gpt',
   });
 
   useEffect(() => {
+    if (initialText) {
+      // Add the initial message from Bob when the chat starts
+      setChatMessages([
+        {
+          content: initialText || 'Hello, I am Bob the Interviewer. How can I help you?',
+          role: 'assistant',
+        },
+      ]);
+    }
+  }, [initialText]);
+
+  useEffect(() => {
+    // Update chatMessages whenever the `messages` array from `useChat` changes
     if (messages.length > 0) {
-      const newMessages = [...messages];
-      newMessages.push({
-        content: initialText || 'Hello, I am Bob the Interviewer. How can I help you?',
-        role: 'user',
-      });
-      setChatMessages(newMessages);
+      const formattedMessages = messages.map((msg) => ({
+        content: msg.content,
+        role: msg.role === 'user' ? 'user' : 'assistant',
+      }));
+      setChatMessages(formattedMessages);
     }
   }, [messages]);
 
   const handleOnSendMessage = async (message: string) => {
+    // Add the user's message to the chat
     append({
       content: message,
-      role: 'user'
+      role: 'user',
     });
 
     try {
+      // Send the message to the OpenAI API
       const response = await fetch('/api/openai-gpt', {
         method: 'POST',
         headers: {
@@ -60,6 +74,7 @@ const Chat: React.FC<ChatProps> = ({ initialText }) => {
       }
 
       const data = await response.json();
+      // Add the AI's response to the chat
       append({
         content: data.response,
         role: 'assistant',
@@ -71,15 +86,18 @@ const Chat: React.FC<ChatProps> = ({ initialText }) => {
   };
 
   return (
-    <ChatBox
-      style={{ margin: 'auto' }}
-      messages={chatMessages}
-      userId={1}
-      onSendMessage={handleOnSendMessage}
-      width={'550px'}
-      height={'500px'}
-    />
+    <div style={{ display: 'flex', justifyContent: 'center', marginTop: '20px' }}>
+      <ChatBox
+        messages={chatMessages}
+        userId={1}
+        onSendMessage={handleOnSendMessage}
+        width={'550px'}
+        height={'500px'}
+        loading={isAiLoading} // Show loading state while AI is processing
+        authors={[userAuthor, aiAuthor]} // Add authors for user and AI
+      />
+    </div>
   );
-}
+};
 
 export default Chat;

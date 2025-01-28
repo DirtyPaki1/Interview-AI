@@ -31,6 +31,7 @@ const ResumeUploader = () => {
 
       const { text: extractedText } = await response.json();
 
+      // Set the extracted text as the initial text for the chat
       setInitialText(extractedText);
       setShowChat(true);
     } catch (error) {
@@ -48,20 +49,40 @@ const ResumeUploader = () => {
   };
 
   return (
-    <div>
-      <p className="instructions-text">{!showChat ? 'Upload your resume to start the interview.' : 'Answer Bob\'s questions.'}</p>
+    <div style={{ textAlign: 'center', padding: '20px' }}>
+      <p className="instructions-text" style={{ fontSize: '18px', marginBottom: '20px' }}>
+        {!showChat ? 'Upload your resume to start the interview.' : 'Answer Bob\'s questions.'}
+      </p>
       {!showChat ? (
         <>
-          <button onClick={handleFileInput}>Select Resume File</button>
-          <input 
-            type="file" 
-            id="file-upload" 
-            onChange={handleResumeUpload} 
+          <button
+            onClick={handleFileInput}
+            style={{
+              padding: '10px 20px',
+              fontSize: '16px',
+              backgroundColor: '#007bff',
+              color: '#fff',
+              border: 'none',
+              borderRadius: '5px',
+              cursor: 'pointer',
+            }}
+          >
+            {isLoading ? 'Uploading...' : 'Select Resume File'}
+          </button>
+          <input
+            type="file"
+            id="file-upload"
+            onChange={handleResumeUpload}
             accept="application/pdf"
             ref={inputRef}
             style={{ display: 'none' }}
           />
-          {isLoading && <div className="loading-spinner"></div>}
+          {isLoading && (
+            <div style={{ marginTop: '20px' }}>
+              <div className="loading-spinner"></div>
+              <p>Processing your resume...</p>
+            </div>
+          )}
         </>
       ) : (
         <Chat initialText={initialText} />
