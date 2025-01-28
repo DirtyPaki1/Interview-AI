@@ -31,7 +31,6 @@ const ResumeUploader = () => {
 
       const { text: extractedText } = await response.json();
 
-      // Set the extracted text as the initial text for the chat
       setInitialText(extractedText);
       setShowChat(true);
     } catch (error) {
@@ -57,13 +56,14 @@ const ResumeUploader = () => {
         <>
           <button
             onClick={handleFileInput}
+            aria-label="Upload Resume"
             style={{
               padding: '10px 20px',
               fontSize: '16px',
-              backgroundColor: '#007bff',
+              backgroundColor: '#8028fe',
               color: '#fff',
               border: 'none',
-              borderRadius: '5px',
+              borderRadius: '15px',
               cursor: 'pointer',
             }}
           >
@@ -76,6 +76,7 @@ const ResumeUploader = () => {
             accept="application/pdf"
             ref={inputRef}
             style={{ display: 'none' }}
+            aria-label="Resume File Input"
           />
           {isLoading && (
             <div style={{ marginTop: '20px' }}>
