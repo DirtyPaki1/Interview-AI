@@ -36,9 +36,10 @@
     "style-loader": "^4.0.0"
   },
   "engines": {
-    "node": "16.x" 
+    "node": "20.x"
   },
-  "resolutions": {
-    "canvas": "2.11.2"
-  }
+  "main": "index.js",
+  "repository": "https://github.com/DirtyPaki1/Interview-AI.git",
+  "author": "DirtyPaki1 <your@email.com>",
+  "license": "MIT"
 }
