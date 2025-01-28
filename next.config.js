@@ -1,7 +1,7 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   webpack: (config, { isServer }) => {
-    // Fix for `canvas` module
+    // Exclude `canvas` from being bundled in the browser
     if (!isServer) {
       config.resolve.fallback = {
         ...config.resolve.fallback,
