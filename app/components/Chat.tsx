@@ -164,7 +164,7 @@ const Chat: React.FC<ChatProps> = ({ initialText }) => {
             onSendMessage={handleOnSendMessage}
             width={'550px'}
             height={'500px'}
-            authors={[userAuthor, aiAuthor]}
+            // Remove the authors prop here
           />
         )}
       </Box>
