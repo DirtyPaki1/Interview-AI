@@ -12,6 +12,17 @@ type ChatProps = {
   initialText?: string;
 };
 
+type ChatMessage = {
+  author: {
+    username: string;
+    id: number;
+    avatarUrl: string;
+  };
+  text: string;
+  type: 'text';
+  timestamp: number;
+};
+
 const userAuthor = {
   username: 'User',
   id: 1,
@@ -25,7 +36,7 @@ const aiAuthor = {
 };
 
 const Chat: React.FC<ChatProps> = ({ initialText }) => {
-  const [chatMessages, setChatMessages] = useState<Array<{ content: string; role: string }>>([]);
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [isDarkMode, setIsDarkMode] = useState(true);
   const { append, messages, isLoading: isAiLoading } = useChat({
     api: '/api/openai-gpt',
@@ -48,8 +59,10 @@ const Chat: React.FC<ChatProps> = ({ initialText }) => {
     if (initialText) {
       setChatMessages([
         {
-          content: initialText || 'Hello, I am Bob the Interviewer. How can I help you?',
-          role: 'assistant',
+          author: aiAuthor,
+          text: initialText || 'Hello, I am Bob the Interviewer. How can I help you?',
+          type: 'text',
+          timestamp: Date.now(),
         },
       ]);
     }
@@ -58,18 +71,28 @@ const Chat: React.FC<ChatProps> = ({ initialText }) => {
   useEffect(() => {
     if (messages.length > 0) {
       const formattedMessages = messages.map((msg) => ({
-        content: msg.content,
-        role: msg.role === 'user' ? 'user' : 'assistant',
+        author: msg.role === 'user' ? userAuthor : aiAuthor,
+        text: msg.content,
+        type: 'text' as const,
+        timestamp: Date.now(),
       }));
       setChatMessages(formattedMessages);
     }
   }, [messages]);
-  const handleOnSendMessage = async (message: string) => {
-    append({
-      content: message,
-      role: 'user',
-    });
 
+  const handleOnSendMessage = async (message: string) => {
+    // Add the user's message to the chat
+    setChatMessages((prevMessages) => [
+      ...prevMessages,
+      {
+        author: userAuthor,
+        text: message,
+        type: 'text',
+        timestamp: Date.now(),
+      },
+    ]);
+
+    // Send the message to the API
     try {
       const response = await fetch('/api/openai-gpt', {
         method: 'POST',
@@ -84,10 +107,17 @@ const Chat: React.FC<ChatProps> = ({ initialText }) => {
       }
 
       const data = await response.json();
-      append({
-        content: data.response,
-        role: 'assistant',
-      });
+
+      // Add the AI's response to the chat
+      setChatMessages((prevMessages) => [
+        ...prevMessages,
+        {
+          author: aiAuthor,
+          text: data.response,
+          type: 'text',
+          timestamp: Date.now(),
+        },
+      ]);
     } catch (error) {
       console.error('Error sending message:', error);
       alert('An error occurred while processing your message.');
@@ -135,6 +165,3 @@ const Chat: React.FC<ChatProps> = ({ initialText }) => {
 };
 
 export default Chat;
-
-
-  
