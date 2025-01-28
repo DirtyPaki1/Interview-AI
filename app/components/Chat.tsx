@@ -5,26 +5,8 @@ import { useChat } from 'ai/react';
 import dynamic from 'next/dynamic';
 import { ThemeProvider, createTheme, CssBaseline, Switch, FormControlLabel, Box } from '@mui/material';
 
-// Define the ChatBoxProps interface
-interface ChatBoxProps {
-  messages: any[];
-  userId: number;
-  onSendMessage: (message: string) => void;
-  width: string;
-  height: string;
-  authors: { username: string; id: number; avatarUrl: string; }[];
-}
-
-// Create a custom ChatBox component that handles the loading state
-const ChatBox = dynamic<ChatBoxProps>(() => import('react-chat-plugin'), { ssr: false });
-
-const CustomChatBox: React.FC<ChatBoxProps & { loading: boolean }> = ({ loading, ...props }) => {
-  if (loading) {
-    return <div>Loading...</div>;
-  }
-
-  return <ChatBox {...props} />;
-};
+// Import the actual ChatBoxProps from react-chat-plugin
+import { ChatBoxProps } from 'react-chat-plugin';
 
 // Define the ChatMessage type
 type ChatMessage = {
@@ -145,6 +127,8 @@ const Chat: React.FC<ChatProps> = ({ initialText }) => {
     }
   };
 
+  const ChatBoxComponent = dynamic<ChatBoxProps>(() => import('react-chat-plugin'), { ssr: false });
+
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
@@ -171,15 +155,18 @@ const Chat: React.FC<ChatProps> = ({ initialText }) => {
           sx={{ marginBottom: '20px' }}
         />
 
-        <CustomChatBox
-          messages={chatMessages}
-          userId={1}
-          onSendMessage={handleOnSendMessage}
-          width={'550px'}
-          height={'500px'}
-          loading={isAiLoading}
-          authors={[userAuthor, aiAuthor]}
-        />
+        {isAiLoading ? (
+          <div>Loading...</div>
+        ) : (
+          <ChatBoxComponent
+            messages={chatMessages}
+            userId={1}
+            onSendMessage={handleOnSendMessage}
+            width={'550px'}
+            height={'500px'}
+            authors={[userAuthor, aiAuthor]}
+          />
+        )}
       </Box>
     </ThemeProvider>
   );
