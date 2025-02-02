@@ -33,12 +33,20 @@ async function fetchOpenAIResponse(extractedText: string): Promise<string> {
       temperature: 1,
     });
 
-    // Convert the response into a friendly text-stream
+    // Convert the response into a ReadableStream
     const stream = OpenAIStream(response);
 
+    // ✅ Fix: Properly read from ReadableStream
+    const reader = stream.getReader();
     let fullResponse = '';
-    for await (const chunk of stream) {
-      fullResponse += chunk;
+    let done = false;
+
+    while (!done) {
+      const { value, done: readerDone } = await reader.read();
+      if (value) {
+        fullResponse += new TextDecoder().decode(value);
+      }
+      done = readerDone;
     }
 
     return fullResponse;
