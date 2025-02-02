@@ -55,6 +55,42 @@ const Chat: React.FC<ChatProps> = ({ initialText }) => {
         default: isDarkMode ? '#121212' : '#f5f7fa',
         paper: isDarkMode ? '#1e1e1e' : '#ffffff',
       },
+      text: {
+        primary: isDarkMode ? '#ffffff' : '#333333', // Changed from #000000 to #333333
+        secondary: isDarkMode ? '#cccccc' : '#666666',
+      },
+      divider: isDarkMode ? '#333333' : '#e0e0e0',
+    },
+    components: {
+      MuiPaper: {
+        styleOverrides: {
+          root: {
+            backgroundColor: isDarkMode ? '#121212' : '#ffffff',
+            color: isDarkMode ? '#ffffff' : '#333333', // Changed from #000000 to #333333
+          },
+        },
+      },
+      MuiButton: {
+        styleOverrides: {
+          root: {
+            backgroundColor: '#8028fe',
+            color: '#ffffff',
+            '&:hover': {
+              backgroundColor: '#5a00ff',
+            },
+          },
+        },
+      },
+      MuiSwitch: {
+        styleOverrides: {
+          thumb: {
+            backgroundColor: isDarkMode ? '#ffffff' : '#333333',
+          },
+          track: {
+            backgroundColor: isDarkMode ? '#cccccc' : '#e0e0e0',
+          },
+        },
+      },
     },
   });
 

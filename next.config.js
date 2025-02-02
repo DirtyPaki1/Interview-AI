@@ -1,13 +1,14 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   webpack: (config, { isServer }) => {
-    // Exclude `canvas` from being bundled in the browser
-    if (!isServer) {
-      config.resolve.fallback = {
-        ...config.resolve.fallback,
-        canvas: false,
-      };
-    }
+    // ... existing configuration ...
+
+    // Add this block to ensure pdfjs-dist is handled correctly
+    config.module.rules.push({
+      test: /\.m?js$/,
+      include: /node_modules\/pdfjs-dist/,
+      type: 'javascript/auto',
+    });
 
     return config;
   },

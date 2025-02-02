@@ -1,12 +1,13 @@
 {
-  "name": "codebender-ai-nextjs",
+  "name": "interview-gpt",
   "version": "0.1.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "generate-pdf-worker": "node_modules/.bin/pdfjs-dist build --output-format mjs --output-path ./public/pdf.worker.min.mjs"
   },
   "dependencies": {
     "@emotion/react": "^11.14.0",
@@ -22,13 +23,13 @@
     "eslint": "8.47.0",
     "eslint-config-next": "13.4.19",
     "formidable": "^3.5.1",
-    "next": "13.4.19",
+    "next": "^15.1.6",
     "openai": "^4.24.2",
-    "pdfjs-dist": "^4.0.379",
+    "pdfjs-dist": "^4.10.38",
     "postcss": "8.4.28",
-    "react": "18.2.0",
+    "react": "^19.0.0",
     "react-chat-plugin": "^0.1.17",
-    "react-dom": "18.2.0",
+    "react-dom": "^19.0.0",
     "typescript": "5.1.6"
   },
   "devDependencies": {

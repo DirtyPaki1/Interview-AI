@@ -1,17 +1,17 @@
-'use client';
+"use client";
 
+import React from 'react';
 import Image from 'next/image';
 import ResumeUploader from './components/ResumeUploader';
-import { useState, useEffect } from 'react';
 
 export default function Home() {
-  const [isDarkMode, setIsDarkMode] = useState(true);
+  const [isDarkMode, setIsDarkMode] = React.useState(true);
 
   const toggleDarkMode = () => {
     setIsDarkMode(!isDarkMode);
   };
 
-  useEffect(() => {
+  React.useEffect(() => {
     if (isDarkMode) {
       document.body.classList.add('dark-mode');
     } else {
@@ -24,7 +24,7 @@ export default function Home() {
       <div className="container">
         <button
           onClick={toggleDarkMode}
-          className="theme-toggle-btn"
+          className={`theme-toggle-btn ${isDarkMode ? 'light' : 'dark'}`}
           aria-label={isDarkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
         >
           {isDarkMode ? '🌙 Dark Mode' : '🌞 Light Mode'}
@@ -42,7 +42,7 @@ export default function Home() {
           <h1>Your AI-Powered Interview Assistant</h1>
         </div>
 
-        <ResumeUploader />
+        <ResumeUploader isDarkMode={isDarkMode} setIsDarkMode={setIsDarkMode} />
       </div>
     </main>
   );

@@ -1,47 +1,52 @@
-// import formidable from "formidable";
-import * as pdfjs from 'pdfjs-dist/build/pdf.min.mjs';
-import type { TextContent, TextItem } from 'pdfjs-dist/types/src/display/api';
+import fs from 'fs/promises';
+import path from 'path';
 import { NextResponse, NextRequest } from 'next/server';
+import { PDFDocumentProxy } from 'pdfjs-dist';
+import { OpenAI } from 'openai';
+import { OpenAIStream, StreamingTextResponse } from 'ai';
 
-function mergeTextContent(textContent: TextContent) {
-  return textContent.items.map(item => {
-    const { str, hasEOL } = item as TextItem
-    return str + (hasEOL ? '\n' : '')
-  }).join('')
-}
+// Create an OpenAI API client
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY || '',
+});
 
-async function fetchOpenAIResponse(extractedText: string) {
-  const response = await fetch('http://localhost:3000/api/openai-gpt', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({ messages: [{role: 'user', content: `Here is my resume:
-------
-${extractedText}` }]}),
-  });
+// Set the runtime to edge
+export const runtime = 'edge';
 
-  if (!response.body) {
-    throw new Error('No response body');
-  }
+async function fetchOpenAIResponse(extractedText: string): Promise<string> {
+  try {
+    const { messages } = JSON.parse(extractedText);
+    
+    // Prepare the system message
+    const systemMessage = {
+      role: "system",
+      content: `You are an expert interviewer specializing in behavioral interviews for software engineers. In the first message, you'll receive a resume. Analyze the data and ask questions one by one based on it. Start with the first question, then wait for the user's reply, and continue until you've asked all questions. Finally, provide feedback to help the user improve.`,
+    };
 
-  const reader = response.body.getReader();
-  let chunks = [];
+    // Combine the system message with the existing messages
+    const combinedMessages = [systemMessage, ...messages];
 
-  // Read the stream
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) {
-      break;
+    // Ask OpenAI for a streaming chat completion
+    const response = await openai.chat.completions.create({
+      model: "gpt-4-1106-preview",
+      messages: combinedMessages,
+      stream: true,
+      temperature: 1,
+    });
+
+    // Convert the response into a friendly text-stream
+    const stream = OpenAIStream(response);
+
+    let fullResponse = '';
+    for await (const chunk of stream) {
+      fullResponse += chunk;
     }
-    chunks.push(value);
+
+    return fullResponse;
+  } catch (error) {
+    console.error('Error in OpenAI API call:', error);
+    throw new Error(`An error occurred during the API request: ${error.message}`);
   }
-
-  // Convert the Uint8Array chunks to string
-  const decoder = new TextDecoder('utf-8');
-  const text = chunks.map(chunk => decoder.decode(chunk)).join('');
-
-  return text;
 }
 
 export async function POST(req: NextRequest, res: NextResponse) {
@@ -53,35 +58,45 @@ export async function POST(req: NextRequest, res: NextResponse) {
 
   try {
     const formData = await req.formData();
-    const [ file ] = formData.getAll('file') as unknown as File[];
+    const [file] = formData.getAll('file') as unknown as File[];
 
     if (!file) {
-      return new Response('No file uploaded', {
+      return new Response(JSON.stringify({ status: 'error', error: 'No file uploaded' }), {
+        headers: {
+          'Content-Type': 'application/json',
+        },
         status: 400,
       });
     }
 
-    const fileBuffer = await file.arrayBuffer();
-    const fileData = new Uint8Array(fileBuffer);
+    // Generate a unique filename
+    const uniqueFileName = `${Date.now()}-${path.basename(file.name)}`;
+    const filePath = path.join(process.cwd(), 'uploads', uniqueFileName);
+
+    // Save the file to disk
+    await fs.writeFile(filePath, await file.arrayBuffer());
 
     // Initialize pdf.js
     await import('pdfjs-dist/build/pdf.worker.mjs');
 
-    // Load the PDF from the buffer
-    const loadingTask = pdfjs.getDocument({ data: fileData });
+    // Load the PDF from the file path
+    const loadingTask = pdfjs.getDocument({ url: filePath });
     const pdf = await loadingTask.promise;
 
     if (!pdf.numPages) {
-      return new Response(JSON.stringify({ status: 'ok', text: null }), {
+      return new Response(JSON.stringify({ status: 'error', error: 'No pages found in PDF' }), {
         headers: {
           'Content-Type': 'application/json',
         },
+        status: 500,
       });
     }
 
     const page = await pdf.getPage(1);
     const textContent = await page.getTextContent();
     const extractedText = mergeTextContent(textContent);
+
+    console.log('Extracted text:', extractedText.substring(0, 100)); // Log first 100 characters for debugging
 
     // Send extracted resume text to openAI API to get the first question from the AI
     const openAIResponse = await fetchOpenAIResponse(extractedText);
@@ -92,6 +107,7 @@ export async function POST(req: NextRequest, res: NextResponse) {
       },
     });
   } catch (err) {
+    console.error('Error processing file:', err);
     return new Response(JSON.stringify({ status: 'error', error: String(err) }), {
       status: 500,
       headers: {
@@ -99,4 +115,14 @@ export async function POST(req: NextRequest, res: NextResponse) {
       },
     });
   }
+}
+
+function mergeTextContent(textContent: any): string {
+  let result = '';
+  textContent.items.forEach((item: any) => {
+    if (item.str) {
+      result += item.str + (item.hasEOL ? '\n' : '');
+    }
+  });
+  return result;
 }
