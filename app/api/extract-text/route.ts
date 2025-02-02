@@ -1,17 +1,16 @@
 import fs from 'fs/promises';
 import path from 'path';
 import { NextResponse, NextRequest } from 'next/server';
-import { PDFDocumentProxy } from 'pdfjs-dist';
 import { OpenAI } from 'openai';
 import { OpenAIStream, StreamingTextResponse } from 'ai';
+
+// Set the runtime to Node.js to support fs and path
+export const runtime = 'nodejs';
 
 // Create an OpenAI API client
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY || '',
 });
-
-// Set the runtime to edge
-export const runtime = 'edge';
 
 async function fetchOpenAIResponse(extractedText: string): Promise<string> {
   try {
@@ -76,8 +75,8 @@ export async function POST(req: NextRequest, res: NextResponse) {
     // Save the file to disk
     await fs.writeFile(filePath, await file.arrayBuffer());
 
-    // Initialize pdf.js
-    await import('pdfjs-dist/build/pdf.worker.mjs');
+    // Import pdf.js dynamically
+    const pdfjs = await import('pdfjs-dist/build/pdf.worker.mjs');
 
     // Load the PDF from the file path
     const loadingTask = pdfjs.getDocument({ url: filePath });
@@ -98,7 +97,7 @@ export async function POST(req: NextRequest, res: NextResponse) {
 
     console.log('Extracted text:', extractedText.substring(0, 100)); // Log first 100 characters for debugging
 
-    // Send extracted resume text to openAI API to get the first question from the AI
+    // Send extracted resume text to OpenAI API to get the first question from the AI
     const openAIResponse = await fetchOpenAIResponse(extractedText);
 
     return new Response(JSON.stringify({ status: 'ok', text: openAIResponse }), {
