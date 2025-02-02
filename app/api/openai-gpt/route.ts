@@ -9,37 +9,49 @@ const openai = new OpenAI({
 export async function POST(request: Request) {
     try {
         const { messages } = await request.json();
-        
+
         // Initialize system message
         const systemMessage = {
             role: 'system',
-            content: 'You are an AI interviewer. Be professional and friendly.'
+            content: 'You are an AI interviewer. Be professional and friendly.',
         };
 
-        // Initialize messages array if it doesn't exist
-        const messageArray = messages || [];
+        // Ensure messages is an array
+        if (!Array.isArray(messages)) {
+            throw new Error("Invalid request: 'messages' should be an array.");
+        }
 
-        // Combine the system message with the existing messages
-        const combinedMessages = [systemMessage, ...messageArray];
+        // Combine system message with user messages
+        const combinedMessages = [systemMessage, ...messages];
 
         // Ask OpenAI for a streaming chat completion
         const response = await openai.chat.completions.create({
             model: 'gpt-3.5-turbo',
             messages: combinedMessages,
-            stream: true,
+            stream: false,  // 🔥 Set `stream: false` for easier debugging
             temperature: 0.7,
             max_tokens: 1000,
         });
 
+        console.log('OpenAI response:', response); // ✅ Debugging output
+
         return NextResponse.json({
             status: 'success',
-            data: response.data
+            text: response.choices?.[0]?.message?.content || "No response from OpenAI",
         });
-    } catch (error) {
-        console.error('Error in OpenAI API call:', error);
-        return NextResponse.json({
-            status: 'error',
-            error: error.message
-        }, { status: 500 });
+    } catch (error: unknown) {
+        console.error('❌ OpenAI API Error:', error);
+
+        let errorMessage = 'Unknown error occurred';
+        if (error instanceof Error) {
+            errorMessage = error.message;
+        } else if (typeof error === 'object' && error !== null && 'message' in error) {
+            errorMessage = String(error.message);
+        }
+
+        return NextResponse.json(
+            { status: 'error', error: errorMessage },
+            { status: 500 }
+        );
     }
 }
