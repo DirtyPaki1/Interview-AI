@@ -15,7 +15,7 @@ const openai = new OpenAI({
 async function fetchOpenAIResponse(extractedText: string): Promise<string> {
   try {
     const { messages } = JSON.parse(extractedText);
-    
+
     // Prepare the system message
     const systemMessage = {
       role: "system",
@@ -50,11 +50,15 @@ async function fetchOpenAIResponse(extractedText: string): Promise<string> {
     }
 
     return fullResponse;
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error in OpenAI API call:', error);
-    throw new Error(`An error occurred during the API request: ${error.message}`);
+
+    // ✅ Fix: Properly extract message from unknown error
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    throw new Error(`An error occurred during the API request: ${errorMessage}`);
   }
 }
+
 
 export async function POST(req: Request) {
   if (req.method !== 'POST') {
