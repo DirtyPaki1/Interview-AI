@@ -1,8 +1,8 @@
 import fs from 'fs/promises';
 import path from 'path';
-import { NextResponse, NextRequest } from 'next/server';
+import { NextResponse } from 'next/server';
 import { OpenAI } from 'openai';
-import { OpenAIStream, StreamingTextResponse } from 'ai';
+import { OpenAIStream } from 'ai';
 
 // Set the runtime to Node.js to support fs and path
 export const runtime = 'nodejs';
@@ -48,7 +48,7 @@ async function fetchOpenAIResponse(extractedText: string): Promise<string> {
   }
 }
 
-export async function POST(req: NextRequest, res: NextResponse) {
+export async function POST(req: Request) {
   if (req.method !== 'POST') {
     return new Response('Method not allowed', {
       status: 405,
@@ -57,38 +57,28 @@ export async function POST(req: NextRequest, res: NextResponse) {
 
   try {
     const formData = await req.formData();
-    const [file] = formData.getAll('file') as unknown as File[];
+    const file = formData.get('file') as File | null;
 
     if (!file) {
-      return new Response(JSON.stringify({ status: 'error', error: 'No file uploaded' }), {
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        status: 400,
-      });
+      return NextResponse.json({ status: 'error', error: 'No file uploaded' }, { status: 400 });
     }
 
     // Generate a unique filename
-    const uniqueFileName = `${Date.now()}-${path.basename(file.name)}`;
+    const uniqueFileName = `${Date.now()}-${file.name}`;
     const filePath = path.join(process.cwd(), 'uploads', uniqueFileName);
 
     // Save the file to disk
-    await fs.writeFile(filePath, await file.arrayBuffer());
+    await fs.writeFile(filePath, Buffer.from(await file.arrayBuffer()));
 
     // Import pdf.js dynamically
-    const pdfjs = await import('pdfjs-dist/build/pdf.worker.mjs');
+    const pdfjs = await import('pdfjs-dist');
 
     // Load the PDF from the file path
     const loadingTask = pdfjs.getDocument({ url: filePath });
     const pdf = await loadingTask.promise;
 
     if (!pdf.numPages) {
-      return new Response(JSON.stringify({ status: 'error', error: 'No pages found in PDF' }), {
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        status: 500,
-      });
+      return NextResponse.json({ status: 'error', error: 'No pages found in PDF' }, { status: 500 });
     }
 
     const page = await pdf.getPage(1);
@@ -100,28 +90,13 @@ export async function POST(req: NextRequest, res: NextResponse) {
     // Send extracted resume text to OpenAI API to get the first question from the AI
     const openAIResponse = await fetchOpenAIResponse(extractedText);
 
-    return new Response(JSON.stringify({ status: 'ok', text: openAIResponse }), {
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    });
+    return NextResponse.json({ status: 'ok', text: openAIResponse });
   } catch (err) {
     console.error('Error processing file:', err);
-    return new Response(JSON.stringify({ status: 'error', error: String(err) }), {
-      status: 500,
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    });
+    return NextResponse.json({ status: 'error', error: String(err) }, { status: 500 });
   }
 }
 
 function mergeTextContent(textContent: any): string {
-  let result = '';
-  textContent.items.forEach((item: any) => {
-    if (item.str) {
-      result += item.str + (item.hasEOL ? '\n' : '');
-    }
-  });
-  return result;
+  return textContent.items.map((item: any) => item.str).join(' ');
 }
