@@ -1,8 +1,10 @@
 "use client";
+
 import React, { useState, useEffect } from "react";
-import * as pdfjsLib from "pdfjs-dist/build/pdf.mjs";
 import Tesseract from "tesseract.js";
 import Chat from "./Chat";
+import * as pdfjs from "pdfjs-dist/legacy/build/pdf";
+import pdfWorker from "pdfjs-dist/legacy/build/pdf.worker.mjs";
 
 interface FileState {
   file: File | null;
@@ -22,8 +24,10 @@ export default function ResumeUploader({
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (typeof window !== "undefined" && "Worker" in window) {
-      pdfjsLib.GlobalWorkerOptions.workerSrc = "/pdf.worker.min.mjs";
+    if (typeof window !== "undefined") {
+      pdfjs.GlobalWorkerOptions.workerSrc = URL.createObjectURL(
+        new Blob([pdfWorker], { type: "application/javascript" })
+      );
     }
   }, []);
 
@@ -44,20 +48,14 @@ export default function ResumeUploader({
     try {
       const response = await fetch("/api/openai-gpt", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          messages: [{
-            role: "user",
-            content: `Here is my resume:\n------\n${extractedText}`,
-          }],
+          messages: [{ role: "user", content: `Here is my resume:\n------\n${extractedText}` }],
         }),
       });
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ error: "Invalid JSON response" }));
-        throw new Error(`HTTP error! status: ${response.status}, message: ${errorData.error || "Unknown error"}`);
+        throw new Error(`HTTP error! status: ${response.status}`);
       }
 
       const aiResponse = await response.json();
@@ -71,22 +69,21 @@ export default function ResumeUploader({
 
   const mergeTextContent = (textContent: any): string => {
     let result = "";
-    if (textContent && textContent.items && Array.isArray(textContent.items)) {
+    if (textContent?.items?.length) {
       textContent.items.forEach((item: any) => {
-        if (item && item.str) {
+        if (item.str) {
           result += item.str + (item.hasEOL ? "\n" : " ");
         }
       });
     } else {
-      setError("No text content found in PDF.");
-      throw new Error("No text content found in PDF.");
+      throw new Error("No readable text found in PDF.");
     }
     return result;
   };
 
   const extractTextWithOCR = async (file: File): Promise<string> => {
     const image = await readAsImage(file);
-    return await Tesseract.recognize(image, "eng", {
+    return Tesseract.recognize(image, "eng", {
       logger: (m) => console.log(m),
     }).then(({ data: { text } }) => text);
   };
@@ -110,22 +107,20 @@ export default function ResumeUploader({
 
     try {
       const arrayBuffer = await fileState.file.arrayBuffer();
-      const loadingTask = pdfjsLib.getDocument({ data: arrayBuffer });
+      const loadingTask = pdfjs.getDocument({ data: arrayBuffer });
       const pdf = await loadingTask.promise;
 
-      if (pdf.numPages === 0) {
-        throw new Error("No pages found in PDF");
-      }
+      if (pdf.numPages === 0) throw new Error("No pages found in PDF");
 
       const page = await pdf.getPage(1);
       const textContent = await page.getTextContent();
 
       let extractedText = mergeTextContent(textContent);
-      
+
       if (!extractedText.trim()) {
         extractedText = await extractTextWithOCR(fileState.file);
         if (!extractedText.trim()) {
-          throw new Error("Failed to extract text from PDF. The PDF may be image-based or corrupted.");
+          throw new Error("Failed to extract text from PDF. It may be image-based or corrupted.");
         }
       }
 
