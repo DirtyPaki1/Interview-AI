@@ -1,57 +1,41 @@
-import { NextResponse } from 'next/server';
-import { OpenAI } from 'openai';
+import { NextRequest, NextResponse } from 'next/server';
 
-// Initialize OpenAI client
-const openai = new OpenAI({
-    apiKey: process.env.OPENAI_API_KEY,
-});
+export async function POST(req: NextRequest) {
+  try {
+    const { messages } = await req.json();
 
-export async function POST(request: Request) {
-    try {
-        const { messages } = await request.json();
-
-        // Initialize system message
-        const systemMessage = {
-            role: 'system',
-            content: 'You are an AI interviewer. Be professional and friendly.',
-        };
-
-        // Ensure messages is an array
-        if (!Array.isArray(messages)) {
-            throw new Error("Invalid request: 'messages' should be an array.");
-        }
-
-        // Combine system message with user messages
-        const combinedMessages = [systemMessage, ...messages];
-
-        // Ask OpenAI for a streaming chat completion
-        const response = await openai.chat.completions.create({
-            model: 'gpt-3.5-turbo',
-            messages: combinedMessages,
-            stream: false,  // 🔥 Set `stream: false` for easier debugging
-            temperature: 0.7,
-            max_tokens: 1000,
-        });
-
-        console.log('OpenAI response:', response); // ✅ Debugging output
-
-        return NextResponse.json({
-            status: 'success',
-            text: response.choices?.[0]?.message?.content || "No response from OpenAI",
-        });
-    } catch (error: unknown) {
-        console.error('❌ OpenAI API Error:', error);
-
-        let errorMessage = 'Unknown error occurred';
-        if (error instanceof Error) {
-            errorMessage = error.message;
-        } else if (typeof error === 'object' && error !== null && 'message' in error) {
-            errorMessage = String(error.message);
-        }
-
-        return NextResponse.json(
-            { status: 'error', error: errorMessage },
-            { status: 500 }
-        );
+    if (!messages || !Array.isArray(messages)) {
+      return NextResponse.json({ error: 'Invalid request: messages array required' }, { status: 400 });
     }
+
+    const response = await fetch("https://api.openai.com/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
+      },
+      body: JSON.stringify({
+        model: "gpt-3.5-turbo",
+        messages,
+      }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      return NextResponse.json({
+        error: errorData.error?.message || "Failed to fetch OpenAI response"
+      }, { status: 500 });
+    }
+
+    const data = await response.json();
+    return NextResponse.json({
+      response: data.choices[0].message.content
+    });
+
+  } catch (error) {
+    console.error('Error in OpenAI API call:', error);
+    return NextResponse.json({
+      error: error instanceof Error ? error.message : "Internal Server Error"
+    }, { status: 500 });
+  }
 }
