@@ -3,8 +3,8 @@
 import React, { useState, useEffect } from "react";
 import Tesseract from "tesseract.js";
 import Chat from "./Chat";
-import * as pdfjs from "pdfjs-dist/legacy/build/pdf";
-import pdfWorker from "pdfjs-dist/legacy/build/pdf.worker.mjs";
+import * as pdfjs from "pdfjs-dist";
+import "pdfjs-dist/build/pdf.worker.mjs"; // Ensure worker is bundled
 
 interface FileState {
   file: File | null;
@@ -25,9 +25,7 @@ export default function ResumeUploader({
 
   useEffect(() => {
     if (typeof window !== "undefined") {
-      pdfjs.GlobalWorkerOptions.workerSrc = URL.createObjectURL(
-        new Blob([pdfWorker], { type: "application/javascript" })
-      );
+      pdfjs.GlobalWorkerOptions.workerSrc = "/pdf.worker.min.mjs"; // Adjusted worker path
     }
   }, []);
 
@@ -44,57 +42,17 @@ export default function ResumeUploader({
     }
   };
 
-  const fetchOpenAIResponse = async (extractedText: string): Promise<string> => {
-    try {
-      const response = await fetch("/api/openai-gpt", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          messages: [{ role: "user", content: `Here is my resume:\n------\n${extractedText}` }],
-        }),
-      });
+  const extractTextFromPDF = async (file: File): Promise<string> => {
+    const arrayBuffer = await file.arrayBuffer();
+    const loadingTask = pdfjs.getDocument({ data: arrayBuffer });
+    const pdf = await loadingTask.promise;
 
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
+    if (pdf.numPages === 0) throw new Error("No pages found in PDF");
 
-      const aiResponse = await response.json();
-      return aiResponse.response;
-    } catch (err) {
-      console.error("Error fetching OpenAI response:", err);
-      setError("Failed to communicate with the server.");
-      throw err;
-    }
-  };
+    const page = await pdf.getPage(1);
+    const textContent = await page.getTextContent();
 
-  const mergeTextContent = (textContent: any): string => {
-    let result = "";
-    if (textContent?.items?.length) {
-      textContent.items.forEach((item: any) => {
-        if (item.str) {
-          result += item.str + (item.hasEOL ? "\n" : " ");
-        }
-      });
-    } else {
-      throw new Error("No readable text found in PDF.");
-    }
-    return result;
-  };
-
-  const extractTextWithOCR = async (file: File): Promise<string> => {
-    const image = await readAsImage(file);
-    return Tesseract.recognize(image, "eng", {
-      logger: (m) => console.log(m),
-    }).then(({ data: { text } }) => text);
-  };
-
-  const readAsImage = (file: File): Promise<string> => {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onloadend = () => resolve(reader.result as string);
-      reader.onerror = reject;
-      reader.readAsDataURL(file);
-    });
+    return textContent.items.map((item: any) => item.str).join(" ");
   };
 
   const handleUpload = async () => {
@@ -106,26 +64,13 @@ export default function ResumeUploader({
     setError(null);
 
     try {
-      const arrayBuffer = await fileState.file.arrayBuffer();
-      const loadingTask = pdfjs.getDocument({ data: arrayBuffer });
-      const pdf = await loadingTask.promise;
-
-      if (pdf.numPages === 0) throw new Error("No pages found in PDF");
-
-      const page = await pdf.getPage(1);
-      const textContent = await page.getTextContent();
-
-      let extractedText = mergeTextContent(textContent);
+      const extractedText = await extractTextFromPDF(fileState.file);
 
       if (!extractedText.trim()) {
-        extractedText = await extractTextWithOCR(fileState.file);
-        if (!extractedText.trim()) {
-          throw new Error("Failed to extract text from PDF. It may be image-based or corrupted.");
-        }
+        throw new Error("Failed to extract text from PDF.");
       }
 
-      const aiResponse = await fetchOpenAIResponse(extractedText);
-      setInitialText(aiResponse);
+      setInitialText(extractedText);
       setShowChat(true);
     } catch (error) {
       console.error("Error processing resume:", error);
@@ -140,16 +85,11 @@ export default function ResumeUploader({
       <p className="instructions-text" style={{ fontSize: "18px", marginBottom: "20px" }}>
         {!showChat ? "Upload your resume to start the interview." : "Answer Bob's questions."}
       </p>
-      
+
       {!showChat ? (
         <>
-          <input 
-            type="file" 
-            accept="application/pdf" 
-            onChange={handleFileChange} 
-            style={{ marginBottom: "20px" }} 
-          />
-          
+          <input type="file" accept="application/pdf" onChange={handleFileChange} style={{ marginBottom: "20px" }} />
+
           {fileState.file && (
             <div style={{ marginTop: "20px" }}>
               <p>Selected File: {fileState.file.name}</p>
