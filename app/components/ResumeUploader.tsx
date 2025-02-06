@@ -12,7 +12,8 @@ interface FileState {
 export default function ResumeUploader({ isDarkMode, setIsDarkMode }: { isDarkMode: boolean; setIsDarkMode: (darkMode: boolean) => void }) {
   const [showChat, setShowChat] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [resumeText, setResumeText] = useState<string | null>(null);
+  const [resumeText, setResumeText] = useState<string | undefined>(undefined);
+
   const [fileState, setFileState] = useState<FileState>({ file: null });
   const [error, setError] = useState<string | null>(null);
 
@@ -78,7 +79,8 @@ export default function ResumeUploader({ isDarkMode, setIsDarkMode }: { isDarkMo
           {error && <p style={{ color: "red" }}>{error}</p>}
         </>
       ) : (
-        <Chat resumeText={resumeText} />
+        <Chat resumeText={resumeText ?? undefined} />
+
       )}
     </div>
   );
